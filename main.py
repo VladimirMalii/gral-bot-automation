@@ -7,102 +7,83 @@ app = Flask(__name__)
 
 async def run_automation(data):
     async with async_playwright() as p:
-        browser = await p.chromium.launch(
-            headless=True,
-            args=["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage"]
-        )
-        page = await browser.new_page()
+        # Pornire browser cu setari de siguranta pentru server
+        browser = await p.chromium.launch(headless=True, args=["--no-sandbox", "--disable-dev-shm-usage"])
+        context = await browser.new_context(viewport={'width': 1280, 'height': 800})
+        page = await context.new_page()
         
-        await page.goto("https://www.gralmedical.ro/Programari-online", wait_until="networkidle", timeout=30000)
-        await page.wait_for_timeout(2000)
+        try:
+            # 1. Navigare
+            await page.goto("https://www.gralmedical.ro/Programari-online", wait_until="networkidle", timeout=60000)
+            
+            # 2. Inchide Cookies (Daca apare)
+            try:
+                cookie_btn = page.locator("button:has-text('Accept'), button:has-text('Sunt de acord'), #CybotCookiebotDialogBodyLevelButtonLevelOptinAllowAll")
+                if await cookie_btn.count() > 0:
+                    await cookie_btn.first.click(timeout=3000)
+            except: pass
 
-        # ===== PASUL 1: Selectii =====
-        
-        # Selecteaza Oras
-        await page.locator("select").nth(0).select_option(label=data.get("oras"))
-        await page.wait_for_timeout(1500)
-
-        # Selecteaza Centru Gral Medical
-        await page.locator("select").nth(1).select_option(label=data.get("centru"))
-        await page.wait_for_timeout(1500)
-
-        # Selecteaza Specialitate
-        await page.locator("select").nth(2).select_option(label=data.get("specialitate"))
-        await page.wait_for_timeout(1500)
-
-        # Selecteaza Medic (optional)
-        if data.get("medic"):
-            await page.locator("select").nth(3).select_option(label=data.get("medic"))
+            # 3. Selectii Pas 1 (Oras, Centru, Specialitate)
+            # Folosim selectoare mai precise
+            await page.locator("select").nth(0).select_option(label=data.get("oras", "Bucuresti"))
+            await page.wait_for_timeout(1000)
+            
+            await page.locator("select").nth(1).select_option(label=data.get("centru"))
+            await page.wait_for_timeout(1000)
+            
+            await page.locator("select").nth(2).select_option(label=data.get("specialitate"))
             await page.wait_for_timeout(1000)
 
-        # Bifeaza "Primul loc disponibil"
-        primul_loc = page.locator("input[type='checkbox']").nth(0)
-        if not await primul_loc.is_checked():
-            await primul_loc.check()
-        await page.wait_for_timeout(500)
+            # Bifeaza Primul loc disponibil
+            await page.locator("input[type='checkbox']").first.check()
+            
+            # Click Continua
+            await page.locator("button:has-text('Continuă')").click()
+            
+            # 4. Asteapta Pasul 2 (Date Personale)
+            # Asteptam sa apara campul de Nume (primul input text)
+            await page.wait_for_selector("input[type='text']", timeout=15000)
 
-        # Apasa Continua
-        await page.locator("button:has-text('Continuă')").click()
-        await page.wait_for_timeout(4000)
+            # Completare Date
+            inputs = page.locator("input[type='text']")
+            await inputs.nth(0).fill(data.get("nume", "Test Automatizare"))
+            
+            # Data Nasterii
+            await page.locator("select").nth(0).select_option(label=str(data.get("an_nastere", "1990")))
+            await page.locator("select").nth(1).select_option(label=data.get("luna_nastere", "Ianuarie"))
+            await page.locator("select").nth(2).select_option(label=str(data.get("zi_nastere", "1")))
 
-        # ===== PASUL 2: Date Personale =====
+            await inputs.nth(1).fill(data.get("telefon", "0722000000"))
+            await inputs.nth(2).fill(data.get("email", "test@test.ro"))
+            
+            await page.locator("textarea").first.fill(data.get("informatii", "Programare AI"))
 
-        # Nume si Prenume
-        await page.locator("input[type='text']").nth(0).fill(data.get("nume", ""))
-        await page.wait_for_timeout(500)
+            # Bifeaza Termeni
+            await page.locator("input[type='checkbox']").last.check()
+            
+            # FINALIZARE
+            await page.locator("button:has-text('Finalizează programarea')").click()
+            await page.wait_for_timeout(5000) # Asteptam sa se trimita cererea
+            
+            return "Programare trimisa cu succes"
 
-        # Data Nasterii - An
-        await page.locator("select").nth(0).select_option(label=data.get("an_nastere", ""))
-        await page.wait_for_timeout(500)
-
-        # Data Nasterii - Luna
-        await page.locator("select").nth(1).select_option(label=data.get("luna_nastere", ""))
-        await page.wait_for_timeout(500)
-
-        # Data Nasterii - Zi
-        await page.locator("select").nth(2).select_option(label=data.get("zi_nastere", ""))
-        await page.wait_for_timeout(500)
-
-        # Telefon
-        await page.locator("input[type='text']").nth(1).fill(data.get("telefon", ""))
-        await page.wait_for_timeout(500)
-
-        # Email
-        await page.locator("input[type='text']").nth(2).fill(data.get("email", ""))
-        await page.wait_for_timeout(500)
-
-        # Informatii suplimentare
-        await page.locator("textarea").nth(0).fill(data.get("informatii", "Programare prin asistent vocal Gral Medical"))
-        await page.wait_for_timeout(500)
-
-        # Bifeaza Termeni si Conditii
-        termeni = page.locator("input[type='checkbox']").nth(0)
-        if not await termeni.is_checked():
-            await termeni.check()
-        await page.wait_for_timeout(500)
-
-        # Apasa Finalizeaza programarea
-        await page.locator("button:has-text('Finalizează programarea')").click()
-        await page.wait_for_timeout(5000)
-
-        await browser.close()
-        return "Programare trimisa cu succes"
+        except Exception as e:
+            print(f"Eroare in timpul automatizarii: {str(e)}")
+            traceback.print_exc()
+            raise e
+        finally:
+            await browser.close()
 
 @app.route("/book", methods=["POST"])
 def book():
     try:
         data = request.json
-        if not data:
-            return jsonify({"status": "error", "message": "Nu am primit date"}), 400
-        
+        # Rulam automatizarea
         result = asyncio.run(run_automation(data))
         return jsonify({"status": "success", "message": result}), 200
-    
     except Exception as e:
-        print("ERROR /book:", str(e))
-        print(traceback.format_exc())
         return jsonify({"status": "error", "message": str(e)}), 500
 
-@app.route("/health", methods=["GET"])
+@app.route("/health")
 def health():
-    return jsonify({"status": "ok", "message": "Gral Bot este activ"}), 200
+    return "OK", 200
