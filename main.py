@@ -77,11 +77,15 @@ async def run_automation(data):
 @app.route("/book", methods=["POST"])
 def book():
     try:
-        data = request.json
-        # Rulam automatizarea
-        result = asyncio.run(run_automation(data))
+        data = request.json or {}
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        result = loop.run_until_complete(run_automation(data))
+        loop.close()
         return jsonify({"status": "success", "message": result}), 200
     except Exception as e:
+        print("BOOK ERROR:", str(e))
+        traceback.print_exc()
         return jsonify({"status": "error", "message": str(e)}), 500
 
 @app.route("/health")
