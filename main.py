@@ -1,93 +1,108 @@
-import asyncio
 import traceback
-from playwright.async_api import async_playwright
+import logging
 from flask import Flask, request, jsonify
+from playwright.sync_api import sync_playwright
 
 app = Flask(__name__)
 
-async def run_automation(data):
-    async with async_playwright() as p:
-        # Pornire browser cu setari de siguranta pentru server
-        browser = await p.chromium.launch(headless=True, args=["--no-sandbox", "--disable-dev-shm-usage"])
-        context = await browser.new_context(viewport={'width': 1280, 'height': 800})
-        page = await context.new_page()
+# Configurare log-uri sa apara in Railway
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+def run_automation(data):
+    # Folosim varianta SYNC pentru stabilitate maxima
+    with sync_playwright() as p:
+        logger.info("[DEBUG] Pornesc browserul Chromium...")
+        browser = p.chromium.launch(
+            headless=True, 
+            args=["--no-sandbox", "--disable-dev-shm-usage"]
+        )
+        context = browser.new_context(viewport={'width': 1280, 'height': 800})
+        page = context.new_page()
         
         try:
-            # 1. Navigare
-            await page.goto("https://www.gralmedical.ro/Programari-online", wait_until="networkidle", timeout=60000)
+            logger.info("[DEBUG] Navighez la Gral Medical...")
+            page.goto("https://www.gralmedical.ro/Programari-online", wait_until="networkidle", timeout=60000)
             
-            # 2. Inchide Cookies (Daca apare)
+            # Inchide Cookies daca apar
             try:
-                cookie_btn = page.locator("button:has-text('Accept'), button:has-text('Sunt de acord'), #CybotCookiebotDialogBodyLevelButtonLevelOptinAllowAll")
-                if await cookie_btn.count() > 0:
-                    await cookie_btn.first.click(timeout=3000)
+                cookie_btn = page.locator("button:has-text('Accept'), button:has-text('Sunt de acord')")
+                if cookie_btn.count() > 0:
+                    cookie_btn.first.click(timeout=3000)
+                    logger.info("[DEBUG] Cookies acceptate.")
             except: pass
 
-            # 3. Selectii Pas 1 (Oras, Centru, Specialitate)
-            # Folosim selectoare mai precise
-            await page.locator("select").nth(0).select_option(label=data.get("oras", "Bucuresti"))
-            await page.wait_for_timeout(1000)
+            # Selectii Pas 1
+            logger.info(f"[DEBUG] Selectez Oras: {data.get('oras')}")
+            page.locator("select").nth(0).select_option(label=data.get("oras", "Bucuresti"))
+            page.wait_for_timeout(1000)
             
-            await page.locator("select").nth(1).select_option(label=data.get("centru"))
-            await page.wait_for_timeout(1000)
+            logger.info(f"[DEBUG] Selectez Centru: {data.get('centru')}")
+            page.locator("select").nth(1).select_option(label=data.get("centru"))
+            page.wait_for_timeout(1000)
             
-            await page.locator("select").nth(2).select_option(label=data.get("specialitate"))
-            await page.wait_for_timeout(1000)
+            logger.info(f"[DEBUG] Selectez Specialitate: {data.get('specialitate')}")
+            page.locator("select").nth(2).select_option(label=data.get("specialitate"))
+            page.wait_for_timeout(1000)
 
             # Bifeaza Primul loc disponibil
-            await page.locator("input[type='checkbox']").first.check()
+            page.locator("input[type='checkbox']").first.check()
             
-            # Click Continua
-            await page.locator("button:has-text('Continuă')").click()
+            logger.info("[DEBUG] Click pe Continua...")
+            page.locator("button:has-text('Continuă')").click()
             
-            # 4. Asteapta Pasul 2 (Date Personale)
-            # Asteptam sa apara campul de Nume (primul input text)
-            await page.wait_for_selector("input[type='text']", timeout=15000)
+            # Asteapta Pasul 2
+            page.wait_for_selector("input[type='text']", timeout=15000)
 
-            # Completare Date
+            # Completare Date Personale
             inputs = page.locator("input[type='text']")
-            await inputs.nth(0).fill(data.get("nume", "Test Automatizare"))
+            logger.info(f"[DEBUG] Completez Nume: {data.get('nume')}")
+            inputs.nth(0).fill(data.get("nume", "Pacient AI"))
             
             # Data Nasterii
-            await page.locator("select").nth(0).select_option(label=str(data.get("an_nastere", "1990")))
-            await page.locator("select").nth(1).select_option(label=data.get("luna_nastere", "Ianuarie"))
-            await page.locator("select").nth(2).select_option(label=str(data.get("zi_nastere", "1")))
+            page.locator("select").nth(0).select_option(label=str(data.get("an_nastere", "1990")))
+            page.locator("select").nth(1).select_option(label=data.get("luna_nastere", "Ianuarie"))
+            page.locator("select").nth(2).select_option(label=str(data.get("zi_nastere", "1")))
 
-            await inputs.nth(1).fill(data.get("telefon", "0722000000"))
-            await inputs.nth(2).fill(data.get("email", "test@test.ro"))
+            logger.info(f"[DEBUG] Telefon: {data.get('telefon')}")
+            inputs.nth(1).fill(data.get("telefon", "0722000000"))
+            inputs.nth(2).fill(data.get("email", "test@test.ro"))
             
-            await page.locator("textarea").first.fill(data.get("informatii", "Programare AI"))
+            page.locator("textarea").first.fill(data.get("informatii", "Programare automata prin asistent vocal."))
 
             # Bifeaza Termeni
-            await page.locator("input[type='checkbox']").last.check()
+            page.locator("input[type='checkbox']").last.check()
             
-            # FINALIZARE
-            await page.locator("button:has-text('Finalizează programarea')").click()
-            await page.wait_for_timeout(5000) # Asteptam sa se trimita cererea
+            logger.info("[DEBUG] Finalizez programarea...")
+            page.locator("button:has-text('Finalizează programarea')").click()
             
+            # Asteptam confirmarea vizuala (5 secunde)
+            page.wait_for_timeout(5000)
+            
+            logger.info("[DEBUG] SUCCES: Programare trimisa.")
             return "Programare trimisa cu succes"
 
         except Exception as e:
-            print(f"Eroare in timpul automatizarii: {str(e)}")
-            traceback.print_exc()
+            logger.error(f"[ERROR] Automatizarea a esuat: {str(e)}")
             raise e
         finally:
-            await browser.close()
+            browser.close()
 
 @app.route("/book", methods=["POST"])
 def book():
     try:
         data = request.json or {}
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        result = loop.run_until_complete(run_automation(data))
-        loop.close()
+        logger.info(f"--- CERERE NOUA: {data.get('nume')} ---")
+        result = run_automation(data)
         return jsonify({"status": "success", "message": result}), 200
     except Exception as e:
-        print("BOOK ERROR:", str(e))
+        # Printeaza eroarea completa in Deploy Logs
         traceback.print_exc()
         return jsonify({"status": "error", "message": str(e)}), 500
 
 @app.route("/health")
 def health():
     return "OK", 200
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=8080)
