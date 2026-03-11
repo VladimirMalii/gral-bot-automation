@@ -1,7 +1,8 @@
 # Use Node.js 20 with Chrome pre-installed
 FROM ghcr.io/puppeteer/puppeteer:23.11.1
 
-# Enable Corepack for Yarn 4.x support
+# Switch to root to enable Corepack
+USER root
 RUN corepack enable
 
 # Set working directory
@@ -9,6 +10,12 @@ WORKDIR /app
 
 # Copy entire repository
 COPY . .
+
+# Change ownership to pptruser
+RUN chown -R pptruser:pptruser /app
+
+# Switch back to pptruser for security
+USER pptruser
 
 # Navigate to nodejs_space and install dependencies
 WORKDIR /app/nodejs_space
