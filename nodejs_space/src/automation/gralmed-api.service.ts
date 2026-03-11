@@ -21,6 +21,12 @@ export class GralmedApiService {
     doctor_id: string;
     date: string; // Format: M/D/YYYY (e.g., "3/23/2026")
   }): Promise<string[]> {
+    // Calculate ref_month from date (YYYY-MM-01 format)
+    const dateParts = params.date.split('/'); // M/D/YYYY
+    const month = dateParts[0].padStart(2, '0');
+    const year = dateParts[2];
+    const refMonth = `${year}-${month}-01`;
+
     const formData = {
       'form_data[city_id]': params.city_id,
       'form_data[location_id]': params.location_id,
@@ -28,6 +34,7 @@ export class GralmedApiService {
       'form_data[service_id]': params.service_id,
       'form_data[doctor_id]': params.doctor_id,
       'form_data[date]': params.date,
+      'form_data[ref_month]': refMonth,
       'form_data[cnas]': '0'
     };
 
