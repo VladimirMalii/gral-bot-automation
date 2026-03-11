@@ -232,20 +232,55 @@ export class AutomationService {
 
   private async selectSpecificDate(page: Page, date: string): Promise<void> {
     try {
-      // Look for date input or calendar
+      // First, find and click the "Selectați ziua și ora" checkbox
+      const checkboxes = await page.$$('input[type="checkbox"]');
+      
+      for (const checkbox of checkboxes) {
+        const label = await page.evaluate((el) => {
+          const parent = el.parentElement;
+          return parent?.textContent?.trim() || '';
+        }, checkbox);
+        
+        this.logger.log(`Found checkbox with label: "${label}"`);
+        
+        if (label.includes('Selectați ziua și ora') || label.includes('Selectati ziua') || label.includes('selectati ziua')) {
+          // Check if checkbox is not already checked
+          const isChecked = await page.evaluate(el => el.checked, checkbox);
+          if (!isChecked) {
+            await checkbox.click();
+            this.logger.log('"Selectați ziua și ora" checkbox clicked');
+            await this.sleep(1000); // Wait for date picker to appear
+          }
+          break;
+        }
+      }
+      
+      // Now look for date input or calendar
       const dateInputs = await page.$$('input[type="text"], input[type="date"]');
       
       for (const input of dateInputs) {
         const placeholder = await page.evaluate(el => el.placeholder || '', input);
         const name = await page.evaluate(el => el.name || '', input);
         
-        if (placeholder.toLowerCase().includes('data') || name.toLowerCase().includes('data') || name.toLowerCase().includes('date')) {
+        this.logger.log(`Found input with placeholder: "${placeholder}", name: "${name}"`);
+        
+        if (placeholder.toLowerCase().includes('data') || 
+            name.toLowerCase().includes('data') || 
+            name.toLowerCase().includes('date') ||
+            placeholder.toLowerCase().includes('selectați') ||
+            placeholder.toLowerCase().includes('selectati')) {
           await input.click();
+          await this.sleep(500);
+          // Clear any existing value
+          await input.evaluate(el => (el as HTMLInputElement).value = '');
           await input.type(date);
           this.logger.log(`Date ${date} entered in date field`);
+          await this.sleep(500);
           return;
         }
       }
+      
+      this.logger.warn('Could not find date input field, date may not have been set');
       
       // If no date input found, try to find and click calendar elements
       this.logger.log('No date input found, trying to interact with calendar...');
