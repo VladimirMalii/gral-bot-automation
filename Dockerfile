@@ -27,9 +27,5 @@ RUN yarn build
 # Expose port
 EXPOSE 3000
 
-# Set environment for Puppeteer
-ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
-    PUPPETEER_EXECUTABLE_PATH=/usr/bin/google-chrome-stable
-
 # Start the application
 CMD ["yarn", "start:prod"]
