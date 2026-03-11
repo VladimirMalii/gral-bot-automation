@@ -19,7 +19,7 @@ USER pptruser
 
 # Navigate to nodejs_space and install dependencies
 WORKDIR /app/nodejs_space
-RUN yarn install --frozen-lockfile
+RUN yarn install
 
 # Build the application
 RUN yarn build
