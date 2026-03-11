@@ -1,6 +1,9 @@
 # Use Node.js 20 with Chrome pre-installed
 FROM ghcr.io/puppeteer/puppeteer:23.11.1
 
+# Enable Corepack for Yarn 4.x support
+RUN corepack enable
+
 # Set working directory
 WORKDIR /app
 
