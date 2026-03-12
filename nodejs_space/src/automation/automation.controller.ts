@@ -14,7 +14,8 @@ export class AutomationController {
 
   constructor(
     private readonly automationService: AutomationService,
-    private readonly gralmedApiService: GralmedApiService
+    private readonly gralmedApiService: GralmedApiService,
+    private readonly appointmentFinalizationService: AppointmentFinalizationService
   ) {}
 
   @Get('health')
