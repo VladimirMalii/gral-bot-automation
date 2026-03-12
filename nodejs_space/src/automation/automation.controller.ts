@@ -2,8 +2,10 @@ import { Controller, Post, Get, Body, Logger, HttpException, HttpStatus } from '
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { AutomationService } from './automation.service';
 import { GralmedApiService } from './gralmed-api.service';
+import { AppointmentFinalizationService } from './appointment-finalization.service';
 import { CheckAvailabilityDto, CheckAvailabilityResponseDto } from './dto/check-availability.dto';
 import { CheckAvailabilityFastDto } from './dto/check-availability-fast.dto';
+import { FinalizeAppointmentDto, FinalizeAppointmentResponseDto } from './dto/finalize-appointment.dto';
 
 @ApiTags('Automation')
 @Controller()
