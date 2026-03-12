@@ -1,6 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import * as puppeteer from 'puppeteer-core';
-import chromium from '@sparticuz/chromium';
+import puppeteer from 'puppeteer';
 import { FinalizeAppointmentDto } from './dto/finalize-appointment.dto';
 
 @Injectable()
@@ -23,16 +22,21 @@ export class AppointmentFinalizationService {
     detalii?: any;
   }> {
     let browser: puppeteer.Browser | null = null;
-  
+    
     try {
       this.logger.log(`Starting appointment finalization for ${dto.nume_prenume}`);
-    
-      // Launch browser with serverless chromium
+      
+      // Launch browser
       browser = await puppeteer.launch({
-        args: chromium.args,
-        defaultViewport: chromium.defaultViewport,
-        executablePath: await chromium.executablePath(),
-        headless: chromium.headless,
+        headless: true,
+        args: [
+          '--no-sandbox',
+          '--disable-setuid-sandbox',
+          '--disable-dev-shm-usage',
+          '--disable-gpu',
+          '--disable-software-rasterizer',
+          '--disable-extensions'
+        ]
       });
 
       const page = await browser.newPage();
@@ -106,7 +110,7 @@ export class AppointmentFinalizationService {
       this.logger.log(`Selecting time slot: ${dto.ora_programare}`);
       // Wait for time slots to appear
       await page.waitForSelector('.time-slot, .hour-slot, [data-hour]', { timeout: 10000 });
-    
+      
       // Click on the specific time slot
       const timeSlotClicked = await page.evaluate((ora) => {
         const slots = Array.from(document.querySelectorAll('.time-slot, .hour-slot, [data-hour], button, a'));
@@ -114,7 +118,7 @@ export class AppointmentFinalizationService {
           const text = slot.textContent?.trim();
           return text === ora || text?.includes(ora);
         });
-      
+        
         if (targetSlot) {
           (targetSlot as HTMLElement).click();
           return true;
