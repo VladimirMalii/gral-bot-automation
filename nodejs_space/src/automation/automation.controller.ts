@@ -174,4 +174,48 @@ export class AutomationController {
       );
     }
   }
+
+  @Post('api/automation/finalize-appointment')
+  @ApiOperation({ 
+    summary: '🎯 Finalizează programarea medicală completând formularul Gralmed',
+    description: 'Folosește Puppeteer pentru a completa automat formularul de programare pe site-ul Gralmed cu datele pacientului. Durează aproximativ 20-30 secunde.'
+  })
+  @ApiResponse({ 
+    status: 200, 
+    description: 'Programarea a fost înregistrată cu succes',
+    type: FinalizeAppointmentResponseDto
+  })
+  @ApiResponse({ 
+    status: 400, 
+    description: 'Date de intrare invalide' 
+  })
+  @ApiResponse({ 
+    status: 500, 
+    description: 'Eroare la finalizarea programării' 
+  })
+  async finalizeAppointment(
+    @Body() dto: FinalizeAppointmentDto
+  ): Promise<FinalizeAppointmentResponseDto> {
+    try {
+      this.logger.log(`Received finalize-appointment request for patient: ${dto.nume_prenume}`);
+      
+      const result = await this.appointmentFinalizationService.finalizeAppointment(dto);
+      
+      this.logger.log(`Appointment finalized successfully for ${dto.nume_prenume}`);
+      
+      return result;
+      
+    } catch (error) {
+      this.logger.error(`Error in finalizeAppointment endpoint: ${error.message}`, error.stack);
+      
+      throw new HttpException(
+        {
+          success: false,
+          message: error.message || 'Nu s-a putut finaliza programarea',
+          error: error.message
+        },
+        HttpStatus.INTERNAL_SERVER_ERROR
+      );
+    }
+  }
 }
