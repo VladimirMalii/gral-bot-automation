@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
-import * as puppeteer from 'puppeteer';
+import * as puppeteer from 'puppeteer-core';
+import chromium from '@sparticuz/chromium';
 import { FinalizeAppointmentDto } from './dto/finalize-appointment.dto';
 
 @Injectable()
@@ -26,15 +27,12 @@ export class AppointmentFinalizationService {
     try {
       this.logger.log(`Starting appointment finalization for ${dto.nume_prenume}`);
     
-      // Launch browser
+      // Launch browser with serverless chromium
       browser = await puppeteer.launch({
-        headless: true,
-        args: [
-          '--no-sandbox',
-          '--disable-setuid-sandbox',
-          '--disable-dev-shm-usage',
-          '--disable-gpu'
-        ]
+        args: chromium.args,
+        defaultViewport: chromium.defaultViewport,
+        executablePath: await chromium.executablePath(),
+        headless: chromium.headless,
       });
 
       const page = await browser.newPage();
